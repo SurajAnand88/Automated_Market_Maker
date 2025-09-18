@@ -38,6 +38,12 @@ contract LiquidityPool {
         tokenB = _tokenB;
     }
 
+    /**
+     *
+     * @param _to address to transfer the token
+     * @param _amount the amount of the token to be transferred by the sender
+     * @dev this function will trnsfer the token from caller to _to address
+     */
     function transfer(address _to, uint256 _amount) public returns (bool) {
         require(balances[msg.sender] >= _amount, "Insufficient Amount");
         balances[msg.sender] -= _amount;
@@ -46,12 +52,26 @@ contract LiquidityPool {
         return true;
     }
 
+    /**
+     *
+     * @param spender the address of the spender to approved by the owner
+     * @param _amount the amount of the token to be approved by the sender
+     * @dev this function will approve the amount of the token to the spender
+     * so the he can spend the token in behalf of the owner
+     */
     function approve(address spender, uint256 _amount) public returns (bool) {
         allowances[msg.sender][spender] = _amount;
         emit Approval(msg.sender, spender, _amount);
         return true;
     }
 
+    /**
+     *
+     * @param _from the address of the owner of the token
+     * @param _to the address of the user to transfer the token
+     * @param _amount the amount of the token to be transfered
+     * @dev this function will be called by the spender to transfer the token on behalf of the owner
+     */
     function transferFrom(address _from, address _to, uint256 _amount) public returns (bool) {
         require(balances[_from] >= _amount, "Insufficient Balance");
         require(allowances[_from][msg.sender] >= _amount, "Insufficient Allowance");
