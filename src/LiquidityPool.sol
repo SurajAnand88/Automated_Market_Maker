@@ -122,6 +122,7 @@ contract LiquidityPool {
             amountB = amountBDesired;
         }
 
+        //transfer the token A and toke B from users address to the contract
         IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
         IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
@@ -131,6 +132,8 @@ contract LiquidityPool {
         } else {
             liquidity = Math.min((amountA * totalSupply) / reserveTokenA, (amountB * totalSupply) / reserveTokenB);
         }
+
+        //check if user is adding enough liquidity
         require(liquidity > 0, "Insufficient LP Tokens to mint");
         _mint(msg.sender, liquidity);
         _updateReserves(amountA, amountB, true);
