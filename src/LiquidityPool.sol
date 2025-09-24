@@ -87,10 +87,19 @@ contract LiquidityPool {
         require(allowances[_from][msg.sender] >= _amount, "Insufficient Allowance");
         balances[_from] -= _amount;
         balances[_to] += _amount;
+        allowances[_from][msg.sender] -= _amount;
         emit Transfer(_from, _to, _amount);
         return true;
     }
 
+    /**
+     *
+     * @param amountADesired the amount of token A user wants to add to the liquidity
+     * @param amountBDesired the amount of toke B user wants to add to the liquidity
+     * @return amountA The amount of token A deposited by user in equal ratio to the token B
+     * @return amountB The amount of token B deposited by user in equal ration to the token A
+     * @return liquidity The amount of LP token user will get after adding the liquidity
+     */
     function addLiquidity(uint112 amountADesired, uint112 amountBDesired)
         public
         returns (uint112 amountA, uint112 amountB, uint256 liquidity)
@@ -113,46 +122,78 @@ contract LiquidityPool {
             amountB = amountBDesired;
         }
 
-        IERC20(tokenA).transferFrom(msg.sender, address(this), amountADesired);
-        IERC20(tokenB).transferFrom(msg.sender, address(this), amountBDesired);
+        IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
+        IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
-        if (liquidity == 0) {
+        if (totalSupply == 0) {
             liquidity = uint256(Math.sqrt(amountA * amountB) - MINIMUM_LIQUIDITY);
-            _mint(address(0), liquidity);
+            _mint(address(0), MINIMUM_LIQUIDITY);
         } else {
             liquidity = Math.min((amountA * totalSupply) / reserveTokenA, (amountB * totalSupply) / reserveTokenB);
         }
         require(liquidity > 0, "Insufficient LP Tokens to mint");
         _mint(msg.sender, liquidity);
-        _updateReserves(amountA, amountB);
+        _updateReserves(amountA, amountB, true);
         emit Mint(msg.sender, amountA, amountB, liquidity);
     }
 
-    function _calculateLpTokens(uint112 amountAToken, uint112 amountBToken) public pure returns (uint256) {}
-
-    function _calculateTokenRatio(uint256 amountAToken, uint256 amountBToken) internal pure returns (uint256) {
-        require(amountAToken > 0 && amountBToken > 0, "Insufficient token amount to calculate Ratio");
-        return (amountAToken * 1e18) / amountBToken;
-    }
-
+    /**
+     *
+     * @param to users address to mint the LP token
+     * @param lpTokens the amount of LP tokens to mint the user
+     */
     function _mint(address to, uint256 lpTokens) internal {
         balances[to] += lpTokens;
         totalSupply += lpTokens;
         emit Transfer(address(0), to, lpTokens);
     }
 
+    /**
+     *
+     * @param from users address to burn the LP tokens
+     * @param lpTokens the amount of LP tokens to burn from users address
+     */
     function _burn(address from, uint256 lpTokens) private {
         balances[from] -= lpTokens;
         totalSupply -= lpTokens;
         emit Transfer(from, address(0), lpTokens);
     }
 
-    function _updateReserves(uint112 amountA, uint112 amountB) internal {
-        reserveTokenA += amountA;
-        reserveTokenB += amountB;
+    /**
+     *
+     * @param amountA the amount of token A to update the reserveA
+     * @param amountB the amounf of token B to update the reserveB
+     */
+    function _updateReserves(uint112 amountA, uint112 amountB, bool add) internal {
+        if (add) {
+            reserveTokenA += amountA;
+            reserveTokenB += amountB;
+        } else {
+            reserveTokenA -= amountA;
+            reserveTokenB -= amountB;
+        }
     }
 
-    function removeLiquidity() public {}
+    /**
+     *
+     * @param liquidity the amount of LP tokens user wants to remove from liquidity
+     * @return tokenAmountA the amount of token A user will get after removing the liquidity
+     * @return tokenAmountB the amount of token B user will get after removing the liquidity
+     */
+    function removeLiquidity(uint256 liquidity) public returns (uint112 tokenAmountA, uint112 tokenAmountB) {
+        //check
+        require(balances[msg.sender] >= liquidity, "Insufficient LP tokens to withdraw");
+
+        //Effects
+        tokenAmountA = uint112((liquidity * reserveTokenA) / totalSupply);
+        tokenAmountB = uint112((liquidity * reserveTokenB) / totalSupply);
+        _burn(msg.sender, liquidity);
+        _updateReserves(tokenAmountA, tokenAmountB, false);
+
+        //Interaction
+        IERC20(tokenA).transfer(msg.sender, tokenAmountA);
+        IERC20(tokenB).transfer(msg.sender, tokenAmountB);
+    }
 
     function swap() public {}
 }
