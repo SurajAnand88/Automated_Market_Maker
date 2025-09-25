@@ -3,8 +3,9 @@ pragma solidity ^0.8.4;
 
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {Math} from "../lib/openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-contract LiquidityPool {
+contract LiquidityPool is ReentrancyGuard {
     using Math for uint112;
 
     address public immutable tokenA;
@@ -15,7 +16,6 @@ contract LiquidityPool {
 
     uint112 public reserveTokenA;
     uint112 public reserveTokenB;
-
     string public constant NAME = "LP Token";
     string public constant SYMBOL = "LST";
     uint256 public constant DECIMAL = 18;
@@ -31,7 +31,7 @@ contract LiquidityPool {
     // <------------------EVENTS------------------>
     event Mint(address indexed provider, uint112 tokenA, uint112 tokenB, uint256 liquidity);
     event Burn(uint256 indexed provider, address tokenA, address tokenB, uint256 liquidity);
-    event Swap(uint256 indexed swapper, uint256 amountIn, uint256 amountOut, address tokenIn, address tokenOut);
+    event Swap(address indexed swapper, uint112 amountIn, uint112 amountOut, address tokenIn, address tokenOut);
     event Transfer(address indexed from, address indexed to, uint256 indexed value);
     event Approval(address indexed owner, address indexed spender, uint256 indexed value);
 
@@ -136,7 +136,7 @@ contract LiquidityPool {
         //check if user is adding enough liquidity
         require(liquidity > 0, "Insufficient LP Tokens to mint");
         _mint(msg.sender, liquidity);
-        _updateReserves(amountA, amountB, true);
+        _updateReserves(amountA + reserveTokenA, amountB + reserveTokenB);
         emit Mint(msg.sender, amountA, amountB, liquidity);
     }
 
@@ -167,14 +167,9 @@ contract LiquidityPool {
      * @param amountA the amount of token A to update the reserveA
      * @param amountB the amounf of token B to update the reserveB
      */
-    function _updateReserves(uint112 amountA, uint112 amountB, bool add) internal {
-        if (add) {
-            reserveTokenA += amountA;
-            reserveTokenB += amountB;
-        } else {
-            reserveTokenA -= amountA;
-            reserveTokenB -= amountB;
-        }
+    function _updateReserves(uint112 amountA, uint112 amountB) internal {
+        reserveTokenA = amountA;
+        reserveTokenB = amountB;
     }
 
     /**
@@ -191,12 +186,44 @@ contract LiquidityPool {
         tokenAmountA = uint112((liquidity * reserveTokenA) / totalSupply);
         tokenAmountB = uint112((liquidity * reserveTokenB) / totalSupply);
         _burn(msg.sender, liquidity);
-        _updateReserves(tokenAmountA, tokenAmountB, false);
+        _updateReserves(reserveTokenA - tokenAmountA, reserveTokenB - tokenAmountB);
 
         //Interaction
         IERC20(tokenA).transfer(msg.sender, tokenAmountA);
         IERC20(tokenB).transfer(msg.sender, tokenAmountB);
     }
 
-    function swap() public {}
+    /**
+     *
+     * @param amountIn the amount of the token user is sending for swap
+     * @param tokenIn the address of the token user is sending for swap
+     */
+    function swap(uint112 amountIn, address tokenIn, uint112 minAmountOut)
+        public
+        nonReentrant
+        returns (address tokenOut, uint112 amountOut)
+    {
+        require(tokenIn == tokenA || tokenIn == tokenB, "Invalid Token");
+        require(amountIn > 0, "AMM: Amount must be in positive");
+        require(IERC20(tokenIn).balanceOf(msg.sender) >= amountIn, "Insufficient token amount");
+
+        (uint112 reserveIn, uint112 reserveOut) =
+            (tokenIn == tokenA) ? (reserveTokenA, reserveTokenB) : (reserveTokenB, reserveTokenA);
+        uint112 amountInWithWei = amountIn * 997 / 1000;
+        tokenOut = tokenIn == tokenA ? tokenB : tokenA;
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+        amountOut = (reserveOut * amountInWithWei) / (reserveIn + amountInWithWei);
+        require(amountOut >= minAmountOut, "AMM Slippage Tolerance Exceeded");
+
+        if (tokenIn == tokenA) {
+            reserveTokenA += amountIn;
+            reserveTokenB -= amountOut;
+        } else {
+            reserveTokenA -= amountOut;
+            reserveTokenB += amountIn;
+        }
+
+        IERC20(tokenOut).transfer(msg.sender, amountOut);
+        emit Swap(msg.sender, amountIn, amountOut, tokenIn, tokenOut);
+    }
 }
