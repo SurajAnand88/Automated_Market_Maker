@@ -226,4 +226,9 @@ contract LiquidityPool is ReentrancyGuard {
         IERC20(tokenOut).transfer(msg.sender, amountOut);
         emit Swap(msg.sender, amountIn, amountOut, tokenIn, tokenOut);
     }
+
+    // <---------------Helper Functions----------------->
+    function getTokenAddresses() public view returns (address, address) {
+        return (tokenA, tokenB);
+    }
 }
