@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {Math} from "../lib/openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {console} from "forge-std/Test.sol";
 
 contract LiquidityPool is ReentrancyGuard {
     using Math for uint112;
@@ -106,12 +107,13 @@ contract LiquidityPool is ReentrancyGuard {
     {
         //calculate the optional DesiredToken
         if (reserveTokenA > 0 && reserveTokenB > 0) {
-            uint112 amountBoptimal = (amountADesired * reserveTokenB) / reserveTokenA;
+            uint112 amountBoptimal = uint112(uint256(amountADesired) * uint256(reserveTokenB) / uint256(reserveTokenA));
             if (amountBoptimal <= amountBDesired) {
                 amountA = amountADesired;
                 amountB = amountBoptimal;
             } else {
-                uint112 amountAoptimal = (amountBDesired * reserveTokenA) / reserveTokenB;
+                uint112 amountAoptimal =
+                    uint112(uint256(amountBDesired) * uint256(reserveTokenA) / uint256(reserveTokenB));
                 if (amountAoptimal <= amountADesired) {
                     amountB = amountBDesired;
                     amountA = amountAoptimal;
@@ -127,10 +129,15 @@ contract LiquidityPool is ReentrancyGuard {
         IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
         if (totalSupply == 0) {
-            liquidity = uint256(Math.sqrt(amountA * amountB) - MINIMUM_LIQUIDITY);
+            console.log("Calculating LP tokens............");
+            liquidity = uint256(Math.sqrt(uint256(amountA) * uint256(amountB)) - MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY);
+            console.log("LP tokens Calculated");
         } else {
-            liquidity = Math.min((amountA * totalSupply) / reserveTokenA, (amountB * totalSupply) / reserveTokenB);
+            liquidity = Math.min(
+                (uint256(amountA) * totalSupply) / uint256(reserveTokenA),
+                (uint256(amountB) * totalSupply) / uint256(reserveTokenB)
+            );
         }
 
         //check if user is adding enough liquidity
@@ -209,20 +216,19 @@ contract LiquidityPool is ReentrancyGuard {
 
         (uint112 reserveIn, uint112 reserveOut) =
             (tokenIn == tokenA) ? (reserveTokenA, reserveTokenB) : (reserveTokenB, reserveTokenA);
-        uint112 amountInWithWei = amountIn * 997 / 1000;
+        uint256 amountInWithFee = uint256(amountIn) * 997;
+        uint256 numerator = uint256(reserveOut) * (amountInWithFee / 1000);
+        uint256 denominator = uint256(reserveIn) + (amountInWithFee / 1000);
+        amountOut = uint112(numerator / denominator);
         tokenOut = tokenIn == tokenA ? tokenB : tokenA;
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-        amountOut = (reserveOut * amountInWithWei) / (reserveIn + amountInWithWei);
         require(amountOut >= minAmountOut, "AMM Slippage Tolerance Exceeded");
 
         if (tokenIn == tokenA) {
-            reserveTokenA += amountIn;
-            reserveTokenB -= amountOut;
+            _updateReserves(reserveTokenA + amountIn, reserveTokenB - amountOut);
         } else {
-            reserveTokenA -= amountOut;
-            reserveTokenB += amountIn;
+            _updateReserves(reserveTokenA - amountOut, reserveTokenB + amountIn);
         }
-
         IERC20(tokenOut).transfer(msg.sender, amountOut);
         emit Swap(msg.sender, amountIn, amountOut, tokenIn, tokenOut);
     }

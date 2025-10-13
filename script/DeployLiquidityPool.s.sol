@@ -6,7 +6,7 @@ import {LiquidityPool} from "src/LiquidityPool.sol";
 import {ERC20Mock} from "../lib/openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
 contract DeployLiquidityPool is Script {
-    uint256 public initialMintTokens = 1000000;
+    uint256 public initialMintTokens = type(uint256).max;
 
     function run() public returns (LiquidityPool) {
         LiquidityPool pool;
