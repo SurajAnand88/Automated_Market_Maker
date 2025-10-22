@@ -34,32 +34,32 @@ contract TestLiquidityPool is Test {
         pool.transfer(user1, lpTokensTransfer);
     }
 
-    // function testAddLiquidityForFirstTime(uint112 amountDesiredA, uint112 amountDesiredB) public {
-    //     vm.assume(amountDesiredA > MINIMUM_LIQUIDITY && amountDesiredA < type(uint112).max);
-    //     vm.assume(amountDesiredB > MINIMUM_LIQUIDITY && amountDesiredB < type(uint112).max);
+    function testAddLiquidityForFirstTime(uint112 amountDesiredA, uint112 amountDesiredB) public {
+        vm.assume(amountDesiredA > MINIMUM_LIQUIDITY && amountDesiredA < type(uint112).max);
+        vm.assume(amountDesiredB > MINIMUM_LIQUIDITY && amountDesiredB < type(uint112).max);
 
-    //     //Arrange
+        //Arrange
 
-    //     (address tokenA, address tokenB) = pool.getTokenAddresses();
-    //     uint256 totalSupplyBefore = pool.totalSupply();
+        (address tokenA, address tokenB) = pool.getTokenAddresses();
+        uint256 totalSupplyBefore = pool.totalSupply();
 
-    //     vm.startPrank(DEFAULT_SENDER);
-    //     IERC20(tokenA).approve(address(pool), amountDesiredA);
-    //     IERC20(tokenB).approve(address(pool), amountDesiredB);
+        vm.startPrank(DEFAULT_SENDER);
+        IERC20(tokenA).approve(address(pool), amountDesiredA);
+        IERC20(tokenB).approve(address(pool), amountDesiredB);
 
-    //     //Act
-    //     (uint112 amountA, uint112 amountB, uint256 liquidity) = pool.addLiquidity(amountDesiredA, amountDesiredB);
-    //     uint256 totalSupplyAfter = pool.totalSupply();
+        //Act
+        (uint112 amountA, uint112 amountB, uint256 liquidity) = pool.addLiquidity(amountDesiredA, amountDesiredB);
+        uint256 totalSupplyAfter = pool.totalSupply();
 
-    //     assertEq(amountDesiredB, amountB);
-    //     assertEq(amountDesiredA, amountA);
-    //     uint256 expectedLiquidity = Math.sqrt(uint256(amountA) * uint256(amountB)) - MINIMUM_LIQUIDITY;
-    //     assertEq(liquidity, expectedLiquidity);
-    //     assertEq(totalSupplyAfter, totalSupplyBefore + liquidity + MINIMUM_LIQUIDITY);
-    //     vm.stopPrank();
-    // }
+        assertEq(amountDesiredB, amountB);
+        assertEq(amountDesiredA, amountA);
+        uint256 expectedLiquidity = Math.sqrt(uint256(amountA) * uint256(amountB)) - MINIMUM_LIQUIDITY;
+        assertEq(liquidity, expectedLiquidity);
+        assertEq(totalSupplyAfter, totalSupplyBefore + liquidity + MINIMUM_LIQUIDITY);
+        vm.stopPrank();
+    }
 
-    function testAddLiquidity(uint112 amountDesiredA, uint112 amountDesiredB, uint112 amountA, uint112 amountB)
+    function testAddLiquiditySubsequentTimes(uint112 amountDesiredA, uint112 amountDesiredB, uint112 amountA, uint112 amountB)
         public
     {
         vm.assume(amountA > 0 && amountA < type(uint112).max / 100);
