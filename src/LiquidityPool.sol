@@ -106,14 +106,25 @@ contract LiquidityPool is ReentrancyGuard {
         returns (uint112 amountA, uint112 amountB, uint256 liquidity)
     {
         //calculate the optional DesiredToken
+
         if (reserveTokenA > 0 && reserveTokenB > 0) {
+            console.log(reserveTokenB, "Reserve token B...");
+            console.log(reserveTokenA, "Reserve token A...");
+            console.log(amountADesired, "Amount A Desired");
             uint112 amountBoptimal = uint112(uint256(amountADesired) * uint256(reserveTokenB) / uint256(reserveTokenA));
+            console.log(amountBoptimal, "amount B optimal");
             if (amountBoptimal <= amountBDesired) {
+                console.log("under If block........");
                 amountA = amountADesired;
                 amountB = amountBoptimal;
             } else {
+                console.log(reserveTokenA, "Reserve token A...");
+                console.log(reserveTokenB, "Reserve token B...");
+                console.log(amountBDesired, "Amount B Desired");
                 uint112 amountAoptimal =
                     uint112(uint256(amountBDesired) * uint256(reserveTokenA) / uint256(reserveTokenB));
+                console.log(amountAoptimal, "Amount A optimal");
+                console.log("under else block.....");
                 if (amountAoptimal <= amountADesired) {
                     amountB = amountBDesired;
                     amountA = amountAoptimal;
@@ -129,11 +140,14 @@ contract LiquidityPool is ReentrancyGuard {
         IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
 
         if (totalSupply == 0) {
-            console.log("Calculating LP tokens............");
             liquidity = uint256(Math.sqrt(uint256(amountA) * uint256(amountB)) - MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY);
-            console.log("LP tokens Calculated");
         } else {
+            console.log(totalSupply, "Total Supply......");
+            console.log("Amount A .....", amountA);
+            console.log("ReserveToken A .....", reserveTokenA);
+            console.log("Amount B .....", amountB);
+            console.log("ReserveToken B .....", reserveTokenB);
             liquidity = Math.min(
                 (uint256(amountA) * totalSupply) / uint256(reserveTokenA),
                 (uint256(amountB) * totalSupply) / uint256(reserveTokenB)
