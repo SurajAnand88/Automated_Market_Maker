@@ -72,6 +72,7 @@ contract TestLiquidityPool is Test {
         (address tokenA, address tokenB) = pool.getTokenAddresses();
         uint256 totalSupplyBefore = pool.totalSupply();
 
+        //Act
         vm.startPrank(DEFAULT_SENDER);
         IERC20(tokenA).approve(address(pool), amountA);
         IERC20(tokenB).approve(address(pool), amountB);
@@ -82,9 +83,7 @@ contract TestLiquidityPool is Test {
         uint112 expectedOptimalAmountB = uint112(uint256(amountA) * reserveTokenB / reserveTokenA);
         uint256 totalSupplyAfter = pool.totalSupply();
 
-        console.log(amountA);
-        console.log(expectedOptimalAmountA);
-        console.log(optimalAmountA);
+        //Assert
         if (expectedOptimalAmountB < amountB) {
             assertEq(expectedOptimalAmountB, optimalAmountB);
         } else {
@@ -94,6 +93,8 @@ contract TestLiquidityPool is Test {
         vm.stopPrank();
     }
 
+
+    //Helper Function to add liquidity for the first time
     function addLiquidity(uint112 amountDesiredA, uint112 amountDesiredB) public {
         vm.assume(amountDesiredA > MINIMUM_LIQUIDITY && amountDesiredA < 1e18);
         vm.assume(amountDesiredB > MINIMUM_LIQUIDITY && amountDesiredB < 1e18);
@@ -101,15 +102,12 @@ contract TestLiquidityPool is Test {
             uint256(amountDesiredA) * 2 > uint256(amountDesiredB)
                 && uint256(amountDesiredB) * 2 > uint256(amountDesiredA)
         );
-
-        //Arrange
         (address tokenA, address tokenB) = pool.getTokenAddresses();
 
         vm.startPrank(DEFAULT_SENDER);
         IERC20(tokenA).approve(address(pool), amountDesiredA);
         IERC20(tokenB).approve(address(pool), amountDesiredB);
 
-        //Act
         pool.addLiquidity(amountDesiredA, amountDesiredB);
         vm.stopPrank();
     }
